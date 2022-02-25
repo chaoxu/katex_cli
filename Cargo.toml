@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 katex = "0.4.3"
 tl = "0.6.2"
+html-escape="0.2.9"

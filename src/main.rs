@@ -7,7 +7,7 @@ fn main() {
         lines.push(line.unwrap());
     }
 
-    let input_string = lines.join("").to_owned();
+    let input_string = lines.join("\n").to_owned();
     let input = &input_string[..];
 
     // parse the dom
@@ -66,7 +66,7 @@ fn main() {
         }
 
         // compute the katex output
-        let katex_output = katex::render_with_opts(&inner_stuff, &option).unwrap();
+        let katex_output = katex::render_with_opts(&html_escape::decode_html_entities(&inner_stuff.to_string()), &option).unwrap();
 
         // push the output to vec
         final_output.push(input[out_start..start].to_string());       
