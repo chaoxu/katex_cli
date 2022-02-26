@@ -1,23 +1,7 @@
 use std::io;
 use std::io::prelude::*;
 fn main() {
-    let stdin = io::stdin();
-    let mut lines = Vec::<String>::new();
-    for line in stdin.lock().lines() {
-        lines.push(line.unwrap());
-    }
-
-    let input_string = lines.join("\n").to_owned();
-    let input = &input_string[..];
-
-    // parse the dom
-    let dom = tl::parse(input, tl::ParserOptions::default()).unwrap();
-
-    let mut final_output = Vec::<String>::new();
-    
-    // loop over every output in tl and collect
-    let elements = dom.query_selector("span.math").unwrap();
-
+    // Setup opts for katex
     let macros_key_value: [(String, String); 13] = [
         ("\\C".to_string(),"\\mathbb{C}".to_string()),
         ("\\F".to_string(),"\\mathbb{F}".to_string()),
@@ -49,31 +33,49 @@ fn main() {
     opts.set_display_mode(false);
     display_opts.set_display_mode(true);
 
-    let mut out_start = 0;
+    // globals
+    let mut prev_end = 0;
+    let mut final_output = Vec::<String>::new();
+
+    // all stdin and store as &str
+    let stdin = io::stdin();
+    let mut lines = Vec::<String>::new();
+    for line in stdin.lock().lines() {
+        lines.push(line.unwrap());
+    }
+    let input_string = lines.join("\n").to_owned();
+    let input = &input_string[..];
+
+    // parse the dom and select the right nodes
+    let dom = tl::parse(input, tl::ParserOptions::default()).unwrap();
+    let elements = dom.query_selector("span.math").unwrap();
+
+    // loop over each element
     for element in elements {
         let node = element.get(dom.parser()).unwrap().as_tag().unwrap();
-        let inner_stuff = node.inner_text(dom.parser());
+        let inner_text = node.inner_text(dom.parser()).to_string();
 
-        let raw = node.raw().as_bytes();
-
-        let start = raw.as_ptr() as usize - input.as_ptr() as usize;
-        let end = start + raw.len();
-
-        // compute the katex options
+        // pick the katex options
         let mut option = &opts;
         if node.attributes().is_class_member("display") {
             option = &display_opts;
         }
 
         // compute the katex output
-        let katex_output = katex::render_with_opts(&html_escape::decode_html_entities(&inner_stuff.to_string()), &option).unwrap();
+        let katex_output = katex::render_with_opts(&html_escape::decode_html_entities(&inner_text), &option).unwrap();
 
-        // push the output to vec
-        final_output.push(input[out_start..start].to_string());       
-        out_start = end+1;
+        // obtain the node's start and end index in the input string
+        let raw = node.raw().as_bytes();
+        let katex_start = raw.as_ptr() as usize - input.as_ptr() as usize;
+        let katex_end = katex_start + raw.len() + 1;
+
+        // intuition: push input[prev_end..start], and katex(input[katex_start..katex_end]) into the vec.
+        final_output.push(input[prev_end..katex_start].to_string());
         final_output.push(katex_output);
+
+        prev_end = katex_end;
     }
-    final_output.push(input[out_start..].to_string());
+    final_output.push(input[prev_end..].to_string());
 
     println!("{}", final_output.join(""))
 
